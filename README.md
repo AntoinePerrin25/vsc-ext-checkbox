@@ -51,6 +51,6 @@ else :
 ### 0.0.1
 
 Version initiale :
-- Détection automatique des patterns `# [CB]:0|1`
+- Détection automatique des patterns `# [CB]:val1|val2`
 - Affichage visuel des checkboxes
 - Commande pour toggle l'état des checkboxes
