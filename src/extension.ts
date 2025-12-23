@@ -1,12 +1,47 @@
 import * as vscode from 'vscode';
 
-const CHECKBOX_REGEX = /#\s*\[CB\]:\s*([^|]+)\|([^\n]+)/g;
-
 let checkedDecorationType: vscode.TextEditorDecorationType;
 let uncheckedDecorationType: vscode.TextEditorDecorationType;
 
-export function extractVariableValue(lineText: string): string | null {
-	const varMatch = lineText.match(/=\s*(.+?)\s*#\s*\[CB\]:/);
+export function getCommentSyntax(languageId: string): string {
+	const commentMap: { [key: string]: string } = {
+		'python': '#',
+		'ruby': '#',
+		'perl': '#',
+		'r': '#',
+		'yaml': '#',
+		'bash': '#',
+		'shell': '#',
+		'powershell': '#',
+		'javascript': '//',
+		'typescript': '//',
+		'java': '//',
+		'c': '//',
+		'cpp': '//',
+		'csharp': '//',
+		'go': '//',
+		'rust': '//',
+		'swift': '//',
+		'kotlin': '//',
+		'php': '//',
+		'dart': '//',
+	};
+	return commentMap[languageId] || '#';
+}
+
+function escapeRegex(str: string): string {
+	return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export function getCheckboxRegex(commentSyntax: string): RegExp {
+	const escaped = escapeRegex(commentSyntax);
+	return new RegExp(`${escaped}\\s*\\[CB\\]:\\s*([^|]+)\\|([^\\n]+)`, 'g');
+}
+
+export function extractVariableValue(lineText: string, commentSyntax: string = '#'): string | null {
+	const escaped = escapeRegex(commentSyntax);
+	const regex = new RegExp(`=\\s*(.+?)\\s*${escaped}\\s*\\[CB\\]:`);
+	const varMatch = lineText.match(regex);
 	if (varMatch) {
 		return varMatch[1].trim();
 	}
@@ -23,14 +58,17 @@ class CheckboxCodeLensProvider implements vscode.CodeLensProvider {
 
 	provideCodeLenses(document: vscode.TextDocument): vscode.CodeLens[] | Thenable<vscode.CodeLens[]> {
 		const codeLenses: vscode.CodeLens[] = [];
+		const commentSyntax = getCommentSyntax(document.languageId);
+		const checkboxRegex = getCheckboxRegex(commentSyntax);
 		
 		for (let i = 0; i < document.lineCount; i++) {
 			const lineText = document.lineAt(i).text;
-			const cbMatch = lineText.match(/#\s*\[CB\]:\s*([^|]+)\|([^\n]+)/);
+			checkboxRegex.lastIndex = 0;
+			const cbMatch = checkboxRegex.exec(lineText);
 			
 			if (cbMatch) {
 				const range = new vscode.Range(i, 0, i, 0);
-				const varValue = extractVariableValue(lineText);
+				const varValue = extractVariableValue(lineText, commentSyntax);
 				const val1 = cbMatch[1].trim();
 				const val2 = cbMatch[2].trim();
 				const isChecked = varValue === val1;
@@ -110,7 +148,18 @@ export function activate(context: vscode.ExtensionContext) {
 		toggleCheckboxAtLine(editor, position.line);
 	});
 
+	const insertSnippetCommand = vscode.commands.registerCommand('checkbox-display.insertSnippet', () => {
+		const editor = vscode.window.activeTextEditor;
+		if (!editor) {
+			return;
+		}
+		const commentSyntax = getCommentSyntax(editor.document.languageId);
+		const snippet = new vscode.SnippetString(`${commentSyntax} [CB]: ${'${1:value1}'}|${'${2:value2}'}`);
+		editor.insertSnippet(snippet, editor.selection.start);
+	});
+
 	context.subscriptions.push(toggleCommand);
+	context.subscriptions.push(insertSnippetCommand);
 	context.subscriptions.push(toggleAtLineCommand);
 	context.subscriptions.push(codeLensProviderDisposable);
 	context.subscriptions.push(checkedDecorationType);
@@ -120,9 +169,14 @@ export function activate(context: vscode.ExtensionContext) {
 export function toggleCheckboxAtLine(editor: vscode.TextEditor, lineNumber: number) {
 	const line = editor.document.lineAt(lineNumber);
 	const lineText = line.text;
+	const commentSyntax = getCommentSyntax(editor.document.languageId);
+	const escapedComment = escapeRegex(commentSyntax);
 
-	const cbMatch = lineText.match(/#\s*\[CB\]:\s*([^|]+)\|([^\n]+)/);
-	const varMatch = lineText.match(/(.*)=\s*(.+?)\s*(#\s*\[CB\]:\s*)([^|]+)\|([^\n]+)/);
+	const cbRegex = new RegExp(`${escapedComment}\\s*\\[CB\\]:\\s*([^|]+)\\|([^\\n]+)`);
+	const varRegex = new RegExp(`(.*)=\\s*(.+?)\\s*(${escapedComment}\\s*\\[CB\\]:\\s*)([^|]+)\\|([^\\n]+)`);
+	
+	const cbMatch = lineText.match(cbRegex);
+	const varMatch = lineText.match(varRegex);
 	
 	if (cbMatch && varMatch) {
 		const beforeEquals = varMatch[1];
@@ -142,15 +196,19 @@ export function toggleCheckboxAtLine(editor: vscode.TextEditor, lineNumber: numb
 function updateDecorations(editor: vscode.TextEditor) {
 	const checkedDecorations: vscode.DecorationOptions[] = [];
 	const uncheckedDecorations: vscode.DecorationOptions[] = [];
+	const commentSyntax = getCommentSyntax(editor.document.languageId);
+	const checkboxRegex = getCheckboxRegex(commentSyntax);
 
 	for (let i = 0; i < editor.document.lineCount; i++) {
 		const lineText = editor.document.lineAt(i).text;
-		const cbMatch = lineText.match(/#\s*\[CB\]:\s*([^|]+)\|([^\n]+)/);
+		checkboxRegex.lastIndex = 0;
+		const cbMatch = checkboxRegex.exec(lineText);
 		
 		if (cbMatch) {
-			const varValue = extractVariableValue(lineText);
+			const varValue = extractVariableValue(lineText, commentSyntax);
 			const val1 = cbMatch[1].trim();
-			const cbIndex = lineText.indexOf('# [CB]:');
+			const cbPattern = `${commentSyntax} [CB]:`;
+			const cbIndex = lineText.indexOf(cbPattern);
 			
 			if (cbIndex !== -1 && varValue) {
 				const startPos = new vscode.Position(i, cbIndex);

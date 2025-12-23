@@ -2,7 +2,7 @@
   "name": "checkbox-display",
   "displayName": "Checkbox Display",
   "description": "Display interactive checkboxes in VS Code editor",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "engines": {
     "vscode": "^1.107.0"
   },
@@ -19,6 +19,11 @@
         "command": "checkbox-display.toggleCheckbox",
         "title": "Toggle Checkbox"
       }
+      ,
+      {
+        "command": "checkbox-display.insertSnippet",
+        "title": "Insert Checkbox Snippet"
+      }
     ],
     "keybindings": [
       {
@@ -26,6 +31,59 @@
         "key": "ctrl+shift+c",
         "mac": "cmd+shift+c",
         "when": "editorTextFocus"
+      }
+      ,
+      {
+        "command": "checkbox-display.insertSnippet",
+        "key": "ctrl+alt+c",
+        "mac": "cmd+alt+c",
+        "when": "editorTextFocus"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "python",
+        "path": "./snippets/checkboxes.code-snippets"
+      },
+      {
+        "language": "javascript",
+        "path": "./snippets/checkboxes.code-snippets"
+      },
+      {
+        "language": "typescript",
+        "path": "./snippets/checkboxes.code-snippets"
+      },
+      {
+        "language": "c",
+        "path": "./snippets/checkboxes.code-snippets"
+      },
+      {
+        "language": "cpp",
+        "path": "./snippets/checkboxes.code-snippets"
+      },
+      {
+        "language": "java",
+        "path": "./snippets/checkboxes.code-snippets"
+      },
+      {
+        "language": "csharp",
+        "path": "./snippets/checkboxes.code-snippets"
+      },
+      {
+        "language": "go",
+        "path": "./snippets/checkboxes.code-snippets"
+      },
+      {
+        "language": "rust",
+        "path": "./snippets/checkboxes.code-snippets"
+      },
+      {
+        "language": "php",
+        "path": "./snippets/checkboxes.code-snippets"
+      },
+      {
+        "language": "ruby",
+        "path": "./snippets/checkboxes.code-snippets"
       }
     ]
   },
@@ -50,5 +108,6 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/AntoinePerrin25/vsc-ext-checkbox.git"
-  }
+  },
+  "publisher": "antoineperrin"
 }

@@ -1,0 +1,9 @@
+{
+	"Checkbox Comment": {
+		"prefix": ["cb", "checkbox"],
+		"body": [
+			"[CB]: ${1:value1}|${2:value2}"
+		],
+		"description": "Insert a checkbox pattern for the Checkbox Display extension"
+	}
+}
