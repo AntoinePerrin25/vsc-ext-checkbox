@@ -110,7 +110,10 @@ export function activate(context: vscode.ExtensionContext) {
 
 	const codeLensProvider = new CheckboxCodeLensProvider();
 	const codeLensProviderDisposable = vscode.languages.registerCodeLensProvider(
-		{ scheme: 'file' },
+		[
+			{ scheme: 'file' },
+			{ scheme: 'vscode-notebook-cell' }
+		],
 		codeLensProvider
 	);
 
