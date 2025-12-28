@@ -7,6 +7,198 @@ let uncheckedDecorationType: vscode.TextEditorDecorationType;
 const circledNumbers = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩', '⑪', '⑫', '⑬', '⑭', '⑮', '⑯', '⑰', '⑱', '⑲', '⑳'];
 const decorationMap: Map<number, vscode.TextEditorDecorationType> = new Map();
 
+// Type for checkbox tree items
+interface CheckboxItem {
+	type: 'file' | 'checkbox' | 'value';
+	filePath?: string;
+	fileName?: string;
+	lineNumber?: number;
+	varName?: string;
+	varValue?: string;
+	checkboxValues?: string[];
+	displayValue?: string; // For value items, the value to display
+}
+
+class CheckboxTreeDataProvider implements vscode.TreeDataProvider<CheckboxItem> {
+	private _onDidChangeTreeData: vscode.EventEmitter<CheckboxItem | undefined | null | void> = new vscode.EventEmitter<CheckboxItem | undefined | null | void>();
+	readonly onDidChangeTreeData: vscode.Event<CheckboxItem | undefined | null | void> = this._onDidChangeTreeData.event;
+
+	private searchFilter: { query: string; caseSensitive: boolean; useRegex: boolean } = { query: '', caseSensitive: false, useRegex: false };
+
+	refresh(): void {
+		this._onDidChangeTreeData.fire();
+	}
+
+	setSearchFilter(query: string, caseSensitive: boolean, useRegex: boolean): void {
+		this.searchFilter = { query, caseSensitive, useRegex };
+		this.refresh();
+	}
+
+	private matchesFilter(varName: string): boolean {
+		const { query, caseSensitive, useRegex } = this.searchFilter;
+		if (!query) {return true;}
+
+		try {
+			if (useRegex) {
+				const flags = caseSensitive ? 'g' : 'gi';
+				const regex = new RegExp(query, flags);
+				return regex.test(varName);
+			} else {
+				const searchStr = caseSensitive ? varName : varName.toLowerCase();
+				const queryStr = caseSensitive ? query : query.toLowerCase();
+				return searchStr.includes(queryStr);
+			}
+		} catch (e) {
+			// Invalid regex, treat as literal string
+			return false;
+		}
+	}
+
+	async getChildren(element?: CheckboxItem): Promise<CheckboxItem[]> {
+		if (!element) {
+			// Root level: show all files with checkboxes
+			return this.getCheckboxFiles();
+		} else if (element.type === 'file') {
+			// File level: show checkboxes in this file
+			return this.getCheckboxesInFile(element.filePath!);
+		} else if (element.type === 'checkbox') {
+			// Checkbox level: show values as child items
+			const values = element.checkboxValues || [];
+			return values.map((value, idx) => ({
+				type: 'value',
+				filePath: element.filePath!,
+				lineNumber: element.lineNumber!,
+				varName: element.varName!,
+				varValue: element.varValue,
+				checkboxValues: values,
+				displayValue: value
+			}));
+		}
+		return [];
+	}
+
+	private async getCheckboxFiles(): Promise<CheckboxItem[]> {
+		const files = await vscode.workspace.findFiles('**/*', null, 1000);
+		const fileMap = new Map<string, CheckboxItem>();
+
+		for (const file of files) {
+			// Skip Jupyter notebooks - they're not properly supported -> breaks json because of the escaped \n
+			if (file.fsPath.endsWith('.ipynb')) {
+				continue;
+			}
+
+			const document = await vscode.workspace.openTextDocument(file);
+			const checkboxes = this.findCheckboxesInDocument(document);
+			
+			if (checkboxes.length > 0) {
+				fileMap.set(file.fsPath, {
+					type: 'file',
+					filePath: file.fsPath,
+					fileName: file.path.split('/').pop()
+				});
+			}
+		}
+
+		return Array.from(fileMap.values());
+	}
+
+	private async getCheckboxesInFile(filePath: string): Promise<CheckboxItem[]> {
+		const document = await vscode.workspace.openTextDocument(filePath);
+		return this.findCheckboxesInDocument(document);
+	}
+
+	private findCheckboxesInDocument(document: vscode.TextDocument): CheckboxItem[] {
+		const checkboxes: CheckboxItem[] = [];
+		const commentSyntax = getCommentSyntax(document.languageId);
+		const checkboxRegex = getCheckboxRegex(commentSyntax);
+		const escapedComment = escapeRegex(commentSyntax);
+		const varNameRegex = new RegExp(`(.*)=\\s*(.+?)\\s*(${escapedComment}\\s*\\[CB\\]:)`);
+
+		for (let i = 0; i < document.lineCount; i++) {
+			const lineText = document.lineAt(i).text;
+			checkboxRegex.lastIndex = 0;
+			const cbMatch = checkboxRegex.exec(lineText);
+			
+			if (cbMatch) {
+				const varValue = extractVariableValue(lineText, commentSyntax);
+				const values = extractCheckboxValues(cbMatch);
+				
+				// Extract variable name correctly
+				const varNameMatch = lineText.match(varNameRegex);
+				const varName = varNameMatch ? varNameMatch[1].trim() : '(unnamed)';
+
+				// Apply search filter
+				if (this.matchesFilter(varName)) {
+					checkboxes.push({
+						type: 'checkbox',
+						filePath: document.uri.fsPath,
+						lineNumber: i,
+						varName: varName,
+						varValue: varValue || undefined,
+						checkboxValues: values
+					});
+				}
+			}
+		}
+
+		return checkboxes;
+	}
+
+	getTreeItem(element: CheckboxItem): vscode.TreeItem {
+		if (element.type === 'file') {
+			return new vscode.TreeItem(
+				element.fileName!,
+				vscode.TreeItemCollapsibleState.Collapsed
+			);
+		} else if (element.type === 'checkbox') {
+			// Checkbox item - make it expandable to show values
+			const values = element.checkboxValues || [];
+			const currentValue = element.varValue;
+			const isChecked = currentValue === values[0];
+			const icon = isChecked ? '☑' : '☐';
+
+			const label = `${icon} ${element.varName} = ${currentValue}`;
+
+			const item = new vscode.TreeItem(
+				label,
+				vscode.TreeItemCollapsibleState.Expanded
+			);
+
+			item.description = `Line ${(element.lineNumber || 0) + 1}`;
+			item.contextValue = 'checkbox';
+
+			// Add command to navigate to line
+			item.command = {
+				command: 'checkbox-display.goToCheckbox',
+				title: 'Go to Checkbox',
+				arguments: [element.filePath, element.lineNumber]
+			};
+
+			return item;
+		} else if (element.type === 'value') {
+			// Value item - clickable to set this value
+			const isSelected = element.displayValue === element.varValue;
+			const icon = isSelected ? '✓' : ' ';
+			
+			const item = new vscode.TreeItem(
+				`${icon} ${element.displayValue}`,
+				vscode.TreeItemCollapsibleState.None
+			);
+
+			item.contextValue = 'value';
+			item.command = {
+				command: 'checkbox-display.setCheckboxValue',
+				title: 'Set Value',
+				arguments: [element.filePath, element.lineNumber, element.displayValue]
+			};
+
+			return item;
+		} else {
+			return new vscode.TreeItem('Unknown');
+		}
+	}
+}
+
 export function getCommentSyntax(languageId: string): string {
 	const commentMap: { [key: string]: string } = {
 		'python': '#',
@@ -49,7 +241,8 @@ export function extractCheckboxValues(match: RegExpExecArray): string[] {
 
 export function extractVariableValue(lineText: string, commentSyntax: string = '#'): string | null {
 	const escaped = escapeRegex(commentSyntax);
-	const regex = new RegExp(`=\\s*(.+?)\\s*${escaped}\\s*\\[CB\\]:`);
+	// Match: = <value> [optional ;] <whitespace> <comment> [CB]:
+	const regex = new RegExp(`=\\s*(.+?)?\\s*${escaped}\\s*\\[CB\\]:`);
 	const varMatch = lineText.match(regex);
 	if (varMatch) {
 		return varMatch[1].trim();
@@ -182,6 +375,68 @@ export function activate(context: vscode.ExtensionContext) {
 		context.subscriptions.push(decorType);
 	}
 
+	// Create Checkbox Explorer tree view
+	const checkboxTreeProvider = new CheckboxTreeDataProvider();
+	const treeView = vscode.window.createTreeView('checkbox-explorer', {
+		treeDataProvider: checkboxTreeProvider,
+		showCollapseAll: true,
+		canSelectMany: false
+	});
+	context.subscriptions.push(treeView);
+
+	// Register command to go to checkbox
+	const goToCheckboxCommand = vscode.commands.registerCommand('checkbox-display.goToCheckbox', async (filePath?: string, lineNumber?: number) => {
+		// If called without parameters, do nothing (must be called with context from tree)
+		if (filePath === undefined || lineNumber === undefined) {
+			return;
+		}
+		
+		const document = await vscode.workspace.openTextDocument(filePath);
+		const editor = await vscode.window.showTextDocument(document);
+		const line = editor.document.lineAt(lineNumber);
+		editor.selection = new vscode.Selection(line.range.start, line.range.start);
+		editor.revealRange(line.range, vscode.TextEditorRevealType.InCenter);
+	});
+	context.subscriptions.push(goToCheckboxCommand);
+
+	// Register command to toggle from explorer
+	const toggleFromExplorerCommand = vscode.commands.registerCommand('checkbox-display.toggleFromExplorer', async (item: any) => {
+		if (item.type === 'checkbox') {
+			const editor = await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(item.filePath));
+			toggleCheckboxAtLine(editor, item.lineNumber);
+		}
+	});
+	context.subscriptions.push(toggleFromExplorerCommand);
+
+	// Add search functionality to tree view
+	const searchCommand = vscode.commands.registerCommand('checkbox-display.searchCheckboxes', async () => {
+		const query = await vscode.window.showInputBox({
+			placeHolder: 'Search checkboxes (supports regex with ^... syntax)',
+			prompt: 'Enter variable name to search'
+		});
+
+		if (query !== undefined) {
+			const caseSensitive = await vscode.window.showQuickPick(
+				[{ label: 'Case Sensitive', picked: false }, { label: 'Case Insensitive', picked: true }],
+				{ placeHolder: 'Choose search mode' }
+			);
+			
+			const useRegex = query.startsWith('^') || query.includes('[');
+			const searchQuery = useRegex ? query : query;
+			
+			checkboxTreeProvider.setSearchFilter(searchQuery, caseSensitive?.label === 'Case Sensitive', useRegex);
+			treeView.title = `Checkbox Explorer (${query})`;
+		}
+	});
+	context.subscriptions.push(searchCommand);
+
+	// Clear search
+	const clearSearchCommand = vscode.commands.registerCommand('checkbox-display.clearSearch', () => {
+		checkboxTreeProvider.setSearchFilter('', false, false);
+		treeView.title = 'Checkbox Explorer';
+	});
+	context.subscriptions.push(clearSearchCommand);
+
 	vscode.window.onDidChangeActiveTextEditor(editor => {
 		if (editor) {
 			updateDecorations(editor);
@@ -281,9 +536,40 @@ export function activate(context: vscode.ExtensionContext) {
 		editor.insertSnippet(snippet, editor.selection.start);
 	});
 
+	const setCheckboxValueCommand = vscode.commands.registerCommand('checkbox-display.setCheckboxValue', async (filePath: string, lineNumber: number, newValue: string) => {
+		const document = await vscode.workspace.openTextDocument(filePath);
+		const editor = await vscode.window.showTextDocument(document);
+		
+		const line = editor.document.lineAt(lineNumber);
+		const lineText = line.text;
+		const commentSyntax = getCommentSyntax(editor.document.languageId);
+		const escapedComment = escapeRegex(commentSyntax);
+		const varRegex = new RegExp(`(.*)=\\s*(.+?)\\s*(${escapedComment}\\s*\\[CB\\]:\\s*)([^|]+(?:\\|[^|\\n]+)*)`);
+		//const varRegex = new RegExp(`(.*)=\\s*(.+?);?\\s*(${escapedComment}\\s*\\[CB\\]:\\s*)([^|]+(?:\\|[^|\\n]+)*)`);
+		const varMatch = lineText.match(varRegex);
+		
+		if (varMatch) {
+			const beforeEquals = varMatch[1];
+			const cbPrefix = varMatch[3];
+			const valuesString = varMatch[4];
+			const newText = `${beforeEquals}= ${newValue} ${cbPrefix}${valuesString}`;
+
+			editor.edit(editBuilder => {
+				editBuilder.replace(line.range, newText);
+			}).then(() => {
+				const autoSave = vscode.workspace.getConfiguration('checkbox-display').get<boolean>('autoSave', false);
+				if (autoSave) {
+					editor.document.save();
+				}
+				checkboxTreeProvider.refresh();
+			});
+		}
+	});
+
 	context.subscriptions.push(toggleCommand);
 	context.subscriptions.push(insertSnippetCommand);
 	context.subscriptions.push(toggleAtLineCommand);
+	context.subscriptions.push(setCheckboxValueCommand);
 	context.subscriptions.push(codeLensProviderDisposable);
 	context.subscriptions.push(checkedDecorationType);
 	context.subscriptions.push(uncheckedDecorationType);

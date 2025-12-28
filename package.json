@@ -24,7 +24,46 @@
         "command": "checkbox-display.insertSnippet",
         "title": "Insert Checkbox Snippet"
       }
+      ,
+      {
+        "command": "checkbox-display.goToCheckbox",
+        "title": "Go to Checkbox"
+      }
+      ,
+      {
+        "command": "checkbox-display.toggleFromExplorer",
+        "title": "Toggle Checkbox",
+        "icon": "$(debug-step-over)"
+      },
+      {
+        "command": "checkbox-display.setCheckboxValue",
+        "title": "Set Checkbox Value"
+      },
+      {
+        "command": "checkbox-display.searchCheckboxes",
+        "title": "Search Checkboxes",
+        "icon": "$(search)"
+      },
+      {
+        "command": "checkbox-display.clearSearch",
+        "title": "Clear Search",
+        "icon": "$(close)"
+      }
     ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "checkbox-display.searchCheckboxes",
+          "group": "navigation",
+          "when": "view == checkbox-explorer"
+        },
+        {
+          "command": "checkbox-display.clearSearch",
+          "group": "navigation",
+          "when": "view == checkbox-explorer"
+        }
+      ]
+    },
     "keybindings": [
       {
         "command": "checkbox-display.toggleCheckbox",
@@ -86,6 +125,15 @@
         "path": "./snippets/checkboxes.code-snippets"
       }
     ],
+    "views": {
+      "explorer": [
+        {
+          "id": "checkbox-explorer",
+          "name": "Checkbox Explorer",
+          "icon": "$(checklist)"
+        }
+      ]
+    },
     "configuration": {
       "title": "Checkbox Display",
       "properties": {
@@ -118,6 +166,12 @@
           "type": "boolean",
           "default": false,
           "description": "Automatically save the file after toggling a checkbox"
+        },
+        "checkbox-display.treeViewMode": {
+          "type": "string",
+          "enum": ["buttons", "list"],
+          "default": "buttons",
+          "description": "Display mode for checkbox items in the Checkbox Explorer sidebar: 'buttons' shows command buttons for each value, 'list' shows all values in a dropdown-like format"
         }
       }
     }
