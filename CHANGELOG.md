@@ -1,6 +1,5 @@
 # Change Log
 
-
 ## 0.0.3
 
 - Added support for Jupyter Notebooks
@@ -9,10 +8,8 @@
 - Added user-configurable colors: `checkbox-display.checkedColor`, `checkbox-display.uncheckedColor`, and `checkbox-display.carouselColor`
 - Value validation with diagnostics: warns when variable value doesn't match carousel values
 - Auto-save on toggle: added `checkbox-display.autoSave` setting (default: false)
-- Auto-save on toggle option
+- Project management with Sidebar (Checkbox explorer) with case sensitivity option, and option to search a checkbox
 
-### (TODO 0.0.3)
-- Feature 11: Project management with Sidebar explorer
 
 
 ## 0.0.2
