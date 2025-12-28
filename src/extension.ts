@@ -416,15 +416,24 @@ export function activate(context: vscode.ExtensionContext) {
 		});
 
 		if (query !== undefined) {
-			const caseSensitive = await vscode.window.showQuickPick(
-				[{ label: 'Case Sensitive', picked: false }, { label: 'Case Insensitive', picked: true }],
-				{ placeHolder: 'Choose search mode' }
-			);
+			// Get search case sensitivity setting
+			const config = vscode.workspace.getConfiguration('checkbox-display');
+			const searchCaseSensitive = config.get<string>('searchCaseSensitive', 'Case Insensitive');
+			
+			let isCaseSensitive = searchCaseSensitive === 'Case Sensitive';
+			
+			// If set to "Prompt", ask the user
+			if (searchCaseSensitive === 'Prompt') {
+				const caseSensitiveChoice = await vscode.window.showQuickPick(
+					[{ label: 'Case Sensitive', picked: false }, { label: 'Case Insensitive', picked: true }],
+					{ placeHolder: 'Choose search mode' }
+				);
+				isCaseSensitive = caseSensitiveChoice?.label === 'Case Sensitive';
+			}
 			
 			const useRegex = query.startsWith('^') || query.includes('[');
-			const searchQuery = useRegex ? query : query;
 			
-			checkboxTreeProvider.setSearchFilter(searchQuery, caseSensitive?.label === 'Case Sensitive', useRegex);
+			checkboxTreeProvider.setSearchFilter(query, isCaseSensitive, useRegex);
 			treeView.title = `Checkbox Explorer (${query})`;
 		}
 	});

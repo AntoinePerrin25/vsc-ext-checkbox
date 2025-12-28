@@ -172,6 +172,12 @@
           "enum": ["buttons", "list"],
           "default": "buttons",
           "description": "Display mode for checkbox items in the Checkbox Explorer sidebar: 'buttons' shows command buttons for each value, 'list' shows all values in a dropdown-like format"
+        },
+        "checkbox-display.searchCaseSensitive": {
+          "type": "string",
+          "enum": ["Prompt", "Case Sensitive", "Case Insensitive"],
+          "default": "Case Insensitive",
+          "description": "How to handle case sensitivity in Checkbox Explorer search: 'Prompt' asks each time, 'Case Sensitive' always matches case, 'Case Insensitive' ignores case"
         }
       }
     }
