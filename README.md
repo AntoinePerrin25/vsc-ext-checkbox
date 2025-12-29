@@ -17,16 +17,16 @@ Checkbox Display is a VS Code extension that detects and renders interactive che
 Write a line with a trailing `[CB]:` specifier listing the two (or more) allowed values separated by `|`:
 
 ```python
-myFlag = true # [CB]: true|false
-mode = "dev" # [CB]: "dev"|"staging"|"prod"
+myFlag = True # [CB]: True|False
+mode = "staging" # [CB]: "dev"|"staging"|"prod"
 ```
 ```c
 bool myFlag = True; # [CB]: True;|False;
-char mode[] = "dev"; # [CB]: "dev";|"staging";|"prod";
+char mode[] = "prod"; # [CB]: "dev";|"staging";|"prod";
 ```
-
-- For binary pairs the extension shows ☐/☑ and toggles between the two values.
-- For more than two values it shows a circled index and cycles through the listed values.
+![C sample](assets/screen_sample.png)
+- For binary pairs the extension shows ☑/☐ and toggles between the two values.
+- From 3 to 20 values it shows a circled index and cycles through the listed values.
 
 Snippets are available (type `cb` or `checkbox`) to insert a pattern quickly.
 
