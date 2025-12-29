@@ -1,112 +1,88 @@
 # Checkbox Display
 
-Une extension VS Code qui détecte et affiche des checkboxes interactives dans l'éditeur de texte.
+Checkbox Display is a VS Code extension that detects and renders interactive checkbox patterns in source files and notebooks.
 
-## Fonctionnalités
+## Features
 
-Cette extension détecte automatiquement les patterns de checkbox dans vos fichiers et les affiche sous forme de symboles visuels :
-- Détection et rendu automatique dans tous les fichiers
-- Support multi-langage (Python, JavaScript, C/C++, Java, etc.)
-- Affichage visuel en temps réel avec ☐ et ☑
-- Toggle interactif par clic ou raccourci clavier
+- Interactive checkboxes for variables and config-like lines (binary and carousel values).
+- Supports many languages and Jupyter Notebooks; comment style is detected automatically.
+- Clickable CodeLens "Click to toggle" for toggling values, plus keyboard shortcut and command palette support.
+- Decorations show ☐/☑ for binary values and circled numbers for carousel entries.
+- Value validation diagnostics to warn when a variable's value doesn't match defined carousel options.
+- Configurable colors and autosave on toggle.
+- Project Sidebar (Checkbox explorer) with search and case-sensitivity option.
 
-## Utilisation
+## How it works
 
-### Format de checkbox
+Write a line with a trailing `[CB]:` specifier listing the two (or more) allowed values separated by `|`:
 
-Le format s'adapte automatiquement au langage du fichier :
-
-**Python, Ruby, Bash, YAML :**
 ```python
-checkbox = 1 # [CB]: 1|0
-file = "example.txt" # [CB]: "exam.txt"|"example.txt"
+myFlag = true # [CB]: true|false
+mode = "dev" # [CB]: "dev"|"staging"|"prod"
+```
+```c
+bool myFlag = True; # [CB]: True;|False;
+char mode[] = "dev"; # [CB]: "dev";|"staging";|"prod";
 ```
 
-**JavaScript, TypeScript, C/C++, Java :**
-```javascript
-const checkbox = 1; // [CB]: 1|0
-let file = "example.txt"; // [CB]: "exam.txt"|"example.txt"
+- For binary pairs the extension shows ☐/☑ and toggles between the two values.
+- For more than two values it shows a circled index and cycles through the listed values.
+
+Snippets are available (type `cb` or `checkbox`) to insert a pattern quickly.
+
+## Commands & Shortcuts
+
+- `Toggle Checkbox` — toggles the checkbox under the cursor (Command Palette).
+- Default shortcut: `Cmd+Shift+C` (macOS) / `Ctrl+Shift+C` (Windows/Linux).
+
+## Configuration
+
+Settings (contributions in `package.json`):
+
+- `checkbox-display.checkedColor`: color for checked decoration.
+- `checkbox-display.uncheckedColor`: color for unchecked decoration.
+- `checkbox-display.carouselColor`: color for carousel indicator.
+- `checkbox-display.autoSave` (boolean, default: `false`): save file automatically after toggle.
+- `checkbox-display.sidebarCaseSensitive` (boolean): case sensitivity in the Checkbox explorer.
+
+## Development
+
+1. Clone the repository and open it in VS Code.
+2. Install dependencies:
+
+```bash
+npm install
 ```
 
-### Format général
-```
-variable = valeur commentaire [CB]: valeur1|valeur2
-```
-- `valeur1` : valeur quand la checkbox est cochée ☑
-- `valeur2` : valeur quand la checkbox est décochée ☐
-- La variable prend automatiquement la valeur correspondant à l'état de la checkbox
+3. Run in debug: press `F5` to open an Extension Development Host.
+4. Run tests:
 
-### Snippet rapide
-
-Tapez `cb` ou `checkbox` puis Tab pour insérer le pattern :
-```
-[CB]: value1|value2
-```
-Le snippet vous permet de naviguer entre les valeurs avec Tab.
-
-### Exemples pratiques
-
-**Python :**
-```python
-debug = True # [CB]: True|False
-count = 10 # [CB]: 10|5
-mode = "dev" # [CB]: "dev"|"prod"
+```bash
+npm test
 ```
 
-**JavaScript :**
-```javascript
-const debug = true; // [CB]: true|false
-let count = 10; // [CB]: 10|5
-const mode = "dev"; // [CB]: "dev"|"prod"
-```
+## Release notes (Changelog)
 
-**C++ :**
-```cpp
-bool enabled = true; // [CB]: true|false
-int count = 10; // [CB]: 10|5
-```
+### 0.0.3
 
-### Toggle checkbox
+- Added (partially) support for Jupyter Notebooks (not through Checkbox Explorer)
+- Added option to display "Click to toggle" Codelens disposable visibility
+- Updated decorations to show circled numbers for carousel values and keep ☑/☐ for binary cases
+- Added user-configurable colors: `checkbox-display.checkedColor`, `checkbox-display.uncheckedColor`, and `checkbox-display.carouselColor`
+- Value validation with diagnostics: warns when variable value doesn't match carousel values
+- Auto-save on toggle: added `checkbox-display.autoSave` setting (default: false)
+- Project management with Sidebar (Checkbox explorer) with case sensitivity option, and option to search a checkbox
 
-Trois façons de changer l'état :
-
-1. **Clic** : Cliquez sur le lien "☑ Click to toggle" au-dessus de la ligne
-2. **Raccourci clavier** :
-   - **macOS**: `Cmd+Shift+C`
-   - **Windows/Linux**: `Ctrl+Shift+C`
-3. **Palette de commandes** : `Toggle Checkbox`
-
-Le toggle échange automatiquement la valeur de la variable entre les deux options.
-
-## Langages supportés
-
-L'extension détecte automatiquement le type de commentaire selon le langage :
-
-- **`#`** : Python, Ruby, Perl, R, YAML, Bash, Shell, PowerShell
-- **`//`** : JavaScript, TypeScript, Java, C, C++, C#, Go, Rust, Swift, Kotlin, PHP, Dart
-
-Pour les langages non listés, `#` est utilisé par défaut.
-
-## Installation pour développement
-
-1. Clonez ce repository
-2. Ouvrez le dossier dans VS Code
-3. Exécutez `npm install`
-4. Appuyez sur `F5` pour lancer l'extension en mode debug
-5. Une nouvelle fenêtre VS Code s'ouvrira avec l'extension activée
-
-## Release Notes
 
 ### 0.0.2
 
-Nouvelles fonctionnalités :
-- Support multi-langage avec adaptation automatique des commentaires
-- Valeurs de checkbox flexibles (nombres, strings, booléens, etc.)
-- Tests complets pour tous les langages supportés
+- Added support for multiple languages
 
 ### 0.0.1
 
-Version initiale :
-- Détection automatique des patterns checkbox
-- Affichage visuel des checkboxes
-- Commande pour toggle l'état des checkboxes
+- Initial release
+
+## Tests & Snippets
+
+- Snippets are stored in the `snippets/` folder.
+- Tests are under `test/` and can be run with `npm test`.

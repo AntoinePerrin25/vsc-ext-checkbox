@@ -78,7 +78,9 @@ class CheckboxTreeDataProvider implements vscode.TreeDataProvider<CheckboxItem> 
 	}
 
 	private async getCheckboxFiles(): Promise<CheckboxItem[]> {
-		const files = await vscode.workspace.findFiles('**/*', null, 1000);
+		// Exclude: .git, node_modules, out, dist, .vscode-test, *.vsix
+		const excludePattern = '**/{.git,node_modules,out,dist,.vscode-test}/**';
+		const files = await vscode.workspace.findFiles('**/*', excludePattern, 1000);
 		const fileMap = new Map<string, CheckboxItem>();
 
 		for (const file of files) {
@@ -87,15 +89,26 @@ class CheckboxTreeDataProvider implements vscode.TreeDataProvider<CheckboxItem> 
 				continue;
 			}
 
-			const document = await vscode.workspace.openTextDocument(file);
-			const checkboxes = this.findCheckboxesInDocument(document);
-			
-			if (checkboxes.length > 0) {
-				fileMap.set(file.fsPath, {
-					type: 'file',
-					filePath: file.fsPath,
-					fileName: file.path.split('/').pop()
-				});
+			// Skip binary files by checking for common binary extensions
+			const binaryExtensions = ['.vsix', '.git', '.bin', '.exe', '.dll', '.so', '.o', '.a', '.lib', '.pyc', '.pyo', '.class'];
+			if (binaryExtensions.some(ext => file.fsPath.endsWith(ext))) {
+				continue;
+			}
+
+			try {
+				const document = await vscode.workspace.openTextDocument(file);
+				const checkboxes = this.findCheckboxesInDocument(document);
+				
+				if (checkboxes.length > 0) {
+					fileMap.set(file.fsPath, {
+						type: 'file',
+						filePath: file.fsPath,
+						fileName: file.path.split('/').pop()
+					});
+				}
+			} catch (error) {
+				// Skip files that cannot be opened (binary, permission denied, etc.)
+				continue;
 			}
 		}
 

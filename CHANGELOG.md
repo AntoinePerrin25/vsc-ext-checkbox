@@ -10,8 +10,6 @@
 - Auto-save on toggle: added `checkbox-display.autoSave` setting (default: false)
 - Project management with Sidebar (Checkbox explorer) with case sensitivity option, and option to search a checkbox
 
-
-
 ## 0.0.2
 
 - Added support for multiple languages
